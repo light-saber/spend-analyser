@@ -7,7 +7,7 @@ from contextlib import closing
 from decimal import Decimal
 
 from .schema import ensure_db
-from .store import insert_transaction, list_transactions
+from .store import insert_transaction, list_transactions, list_review_transactions
 
 
 def ingest_json(conn, input_path):
@@ -44,11 +44,13 @@ def ingest_json(conn, input_path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
-    for name in ('init', 'ingest-json', 'list'):
+    for name in ('init', 'ingest-json', 'list', 'review'):
         command = commands.add_parser(name)
         command.add_argument('--db', required=True)
         if name == 'ingest-json':
             command.add_argument('--input', required=True)
+        elif name == 'review':
+            command.add_argument('--limit', default='5')
         elif name == 'list':
             command.add_argument('--start', required=True)
             command.add_argument('--end', required=True)
@@ -59,6 +61,9 @@ def main(argv=None):
                 print('Database initialized.')
             elif args.command == 'ingest-json':
                 print(json.dumps(ingest_json(conn, args.input)))
+            elif args.command == 'review':
+                for row in list_review_transactions(conn, int(args.limit)):
+                    print(json.dumps(row, ensure_ascii=False))
             else:
                 for row in list_transactions(conn, args.start, args.end):
                     print(json.dumps(row, ensure_ascii=False))

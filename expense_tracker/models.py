@@ -16,7 +16,8 @@ def normalize_transaction(tx):
     if not isinstance(tx, dict):
         raise ValueError("transaction must be an object")
     allowed = {'date', 'merchant', 'amount', 'currency', 'source', 'source_id',
-               'parser_confidence'}
+               'parser_confidence', 'category', 'category_source', 'category_confidence',
+               'raw_category', 'parser_reason'}
     if set(tx) - allowed:
         raise ValueError("unsupported transaction fields")
     day = validate_date(tx.get('date'))
@@ -47,7 +48,7 @@ def normalize_transaction(tx):
         raise ValueError("parser_confidence must be between zero and one")
     return dict(date=day, merchant=merchant.strip(), amount_paise=int(paise),
                 currency='INR', source=source.strip(), source_id=source_id,
-                parser_confidence=float(confidence))
+                parser_confidence=float(confidence), **classification_metadata(tx))
 
 
 def source_hash(tx):
@@ -59,3 +60,31 @@ def source_hash(tx):
         identity = {k: normalized[k] for k in ('source', 'date', 'merchant', 'amount_paise', 'currency')}
     payload = json.dumps(identity, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
     return hashlib.sha256(('v1:' + payload).encode('utf-8')).hexdigest()
+
+
+def classification_metadata(tx):
+    """Validate metadata supplied by a trusted importer without echoing values."""
+    fields = {'category', 'category_source', 'category_confidence'}
+    supplied = fields.intersection(tx)
+    result = {}
+    if supplied:
+        if supplied != fields:
+            raise ValueError("category metadata must include category, source and confidence")
+        for name in ('category', 'category_source'):
+            value = tx[name]
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("category and category_source must be nonempty text")
+            result[name] = value.strip()
+        confidence = tx['category_confidence']
+        if (isinstance(confidence, bool) or
+                not isinstance(confidence, (int, float, Decimal)) or
+                (isinstance(confidence, Decimal) and not confidence.is_finite()) or
+                not 0 <= confidence <= 1):
+            raise ValueError("category_confidence must be between zero and one")
+        result['category_confidence'] = float(confidence)
+    for name in ('raw_category', 'parser_reason'):
+        value = tx.get(name)
+        if value is not None and not isinstance(value, str):
+            raise ValueError("raw_category and parser_reason must be text or null")
+        result[name] = value
+    return result

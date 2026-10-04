@@ -58,6 +58,15 @@ def ensure_db(db_path):
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
         conn.executescript(SCHEMA)
+        with conn:
+            conn.execute("BEGIN IMMEDIATE")
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(transactions)")}
+            if 'raw_category' not in columns:
+                conn.execute("ALTER TABLE transactions ADD COLUMN raw_category TEXT")
+            if 'parser_reason' not in columns:
+                conn.execute("ALTER TABLE transactions ADD COLUMN parser_reason TEXT")
+            if conn.execute("PRAGMA user_version").fetchone()[0] < 2:
+                conn.execute("PRAGMA user_version = 2")
         return conn
     except Exception:
         conn.close()
