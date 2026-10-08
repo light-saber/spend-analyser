@@ -44,7 +44,10 @@ def normalize_transaction(tx):
     if source_id is not None and (not isinstance(source_id, str) or not source_id.strip()):
         raise ValueError("source_id must be nonempty text")
     confidence = tx.get('parser_confidence', 1.0)
-    if isinstance(confidence, bool) or not isinstance(confidence, (int, float, Decimal)) or not math.isfinite(confidence) or not 0 <= confidence <= 1:
+    if (isinstance(confidence, bool) or
+            not isinstance(confidence, (int, float, Decimal)) or
+            (isinstance(confidence, Decimal) and not confidence.is_finite()) or
+            not 0 <= confidence <= 1):
         raise ValueError("parser_confidence must be between zero and one")
     return dict(date=day, merchant=merchant.strip(), amount_paise=int(paise),
                 currency='INR', source=source.strip(), source_id=source_id,

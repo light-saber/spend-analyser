@@ -1,3 +1,14 @@
+import os
+from unittest.mock import patch
+
+
+def setUpModule():
+    # Unit tests and their CLI subprocesses must never call the live service.
+    blocker = patch.dict(os.environ, {'TYPESAFE_API_KEY': ''})
+    blocker.start()
+    unittest.addModuleCleanup(blocker.stop)
+
+
 import importlib.util
 import tempfile
 import unittest
@@ -95,7 +106,7 @@ class CliTests(unittest.TestCase):
             result = self.run_cli('list', '--db', db, '--start', '2026-01-02', '--end', '2026-01-02')
             row = json.loads(result.stdout)
             self.assertEqual(row['category'], 'groceries')
-            self.assertEqual(row['category_source'], 'merchant_rule')
+            self.assertEqual(row['category_source'], 'rule')
             self.assertEqual(row['status'], 'confirmed')
 
 

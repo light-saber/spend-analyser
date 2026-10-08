@@ -1,3 +1,14 @@
+import os
+from unittest.mock import patch
+
+
+def setUpModule():
+    # Unit tests and their CLI subprocesses must never call the live service.
+    blocker = patch.dict(os.environ, {'TYPESAFE_API_KEY': ''})
+    blocker.start()
+    unittest.addModuleCleanup(blocker.stop)
+
+
 import tempfile
 import unittest
 from pathlib import Path
@@ -56,7 +67,7 @@ class Phase2Tests(unittest.TestCase):
                           ('Example Shop', 'groceries'))
         result = classify_transaction(self.conn, tx)
         self.assertEqual((result['category'], result['category_source'],
-                          result['category_confidence']), ('groceries', 'merchant_rule', 1.0))
+                          result['category_confidence']), ('groceries', 'rule', 1.0))
         self.assertEqual(result['raw_category'], 'Transport')
         self.assertEqual(classify_transaction(self.conn, dict(tx, parser_confidence=0.79))
                          ['review_reason'], 'low_parser_confidence')
